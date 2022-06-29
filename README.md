@@ -6,7 +6,7 @@ Build:
 
 Run:
 
-    cluster-controller -config /path/to/config
+    cluster-controller -config /path/to/config -kubeconfig /path/to/kubeconfig
 
 Example config.yml
 
@@ -18,9 +18,9 @@ manifests_path: "/etc/kubernetes/manifests"
 manifests:
   # имя манифеста, манифест будет сохранен в файл  /etc/kubernetes/manifests/{name}.yaml
   - name: "etcd"
-  # путь до файла с шаблном для данного манифеста
+    # путь до файла с шаблном для данного манифеста
     template_path: "/path/to/manifests/template"
-  # аргументы которые будут добавлены в шаблон манифеста
+    # аргументы которые будут добавлены в шаблон манифеста
     args:
       - "arg1"
       - "arg2"
