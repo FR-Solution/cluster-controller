@@ -1,5 +1,15 @@
 # cluster-controller
 
+Build:
+
+    go build -o cluster-controller cmd/cluster-controller/main.go
+
+Run:
+
+    cluster-controller -config /path/to/config
+
+Example config.yml
+
 ```yaml
 ---
 # путь до каталога, где должны храниться манифесты
@@ -9,9 +19,9 @@ manifests:
   # имя манифеста, манифест будет сохранен в файл  /etc/kubernetes/manifests/{name}.yaml
   - name: "etcd"
   # путь до файла с шаблном для данного манифеста
-  - template_path: "/path/to/manifests/template"
+    template_path: "/path/to/manifests/template"
   # аргументы которые будут добавлены в шаблон манифеста
-  - args:
+    args:
       - "arg1"
       - "arg2"
 ```
