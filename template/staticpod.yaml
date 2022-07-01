@@ -1,0 +1,24 @@
+apiVersion: staticpod.fraima.io/v1beta
+kind: etcd
+metadata:
+    annotations: {}
+    labels: {}
+    name: ""
+spec:
+  selector:
+    matchLabels: {}
+  template:
+    metadata:
+      labels: {}
+      annotations: {}
+    spec:
+      nodeSelector: {}
+      containers:
+        - name: ""
+          image: ""
+          imagePullPolicy: ""
+          args: []
+          livenessProbe: {}
+          readinessProbe: {}
+          resources: {}
+          env: []
