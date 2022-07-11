@@ -11,11 +11,12 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Client struct {
-	cli *clientset.Clientset
+	restConfig *rest.Config
 }
 
 func NewClient(kubeconfigPath string) (*Client, error) {
@@ -24,18 +25,13 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 		return nil, fmt.Errorf("read kubeconfig %s : %w", kubeconfigPath, err)
 	}
 
-	restConfig, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+	cli := &Client{}
+
+	cli.restConfig, err = clientcmd.RESTConfigFromKubeConfig(configBytes)
 	if err != nil {
 		return nil, fmt.Errorf("new rest config: %w\n", err)
 	}
-
-	cli, err := clientset.NewForConfig(restConfig)
-	if err != nil {
-		return nil, fmt.Errorf("new clientset: %w", err)
-	}
-	return &Client{
-		cli: cli,
-	}, err
+	return cli, nil
 }
 
 func (c *Client) CreateCDR(crdData []byte) error {
@@ -53,10 +49,29 @@ func (c *Client) CreateCDR(crdData []byte) error {
 		return fmt.Errorf("parse manifest to cdr struct: %w", err)
 	}
 
-	_, err = c.cli.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
+	kubeClient, err := clientset.NewForConfig(c.restConfig)
+	if err != nil {
+		return fmt.Errorf("create new clientset: %w", err)
+	}
+	_, err = kubeClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("create cdr in kubernetes: %w", err)
 	}
+	return nil
+}
 
+func (c *Client) CreateInformer(crd *v1beta1.CustomResourceDefinition) error {
+	// clusterClient, err := dynamic.NewForConfig(c.restConfig)
+	// if err != nil {
+	// 	return fmt.Errorf("create new dinamic client: %w", err)
+	// }
+
+	// resource := schema.GroupVersionResource{
+	// 	Group:    crd.Spec.Group,
+	// 	Version:  crd.GetResourceVersion(),
+	// 	Resource: crd.GetObjectMeta().GetName(),
+	// }
+	// factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(clusterClient, time.Minute, crd.Namespace, nil)
+	// informer := factory.ForResource(resource).Informer()
 	return nil
 }

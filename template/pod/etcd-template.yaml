@@ -2,8 +2,6 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  annotations:
-    kubeadm.kubernetes.io/etcd.advertise-client-urls: https://${ instance_name }.${base_domain}:2379
   creationTimestamp: null
   labels:
     component: etcd
@@ -12,62 +10,24 @@ metadata:
   namespace: kube-system
 spec:
   containers:
-  - command:
+  - name: etcd
+    command:
       - etcd
     args:
-      # Базовые значения -> нельзя изменять (в первом приближении, заложить логику для интеграции с key-keeper)
-      - --trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
-      - --cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server.pem
-      - --key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server-key.pem
-      - --peer-trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
-      - --peer-cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer.pem
-      - --peer-key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer-key.pem
-      - --strict-reconfig-check
-      - --peer-client-cert-auth=true
-      - --peer-auto-tls=true
-      - --client-cert-auth=true
-      - --name=${ HOSTANAME }.${base_domain}
-      - --initial-advertise-peer-urls=https://${ instance_name }.${base_domain}:2380
-      - --listen-client-urls=${client_instances_list}  # https://${instance-1 | ip }:2379,https://${instance-2 | ip }:2379,https://${instance-3 | ip }:2379
-      - --listen-peer-urls=${peer_instances_list}      # https://${instance-1 | ip }:2380,https://${instance-2 | ip }:2380,https://${instance-3 | ip }:2380
-      - --listen-metrics-urls=http://127.0.0.1:2381
-      - --advertise-client-urls=https://${ instance_name }.${base_domain}:2379
-      - --initial-cluster-token=etcd
-      - --initial-cluster=${ etcd_initial_cluster }
-      - --initial-cluster-state=new
-      - --data-dir=/var/lib/etcd
-      # Базовые значения -> можно перезаписывать значения через конфигурационный файл
-      {{- range $key, $value := .Args }}
-      - {{ $value }}
-      {{- end }}
-
-    image: k8s.gcr.io/etcd:3.5.3-0
-    imagePullPolicy: IfNotPresent
-    livenessProbe:
-      failureThreshold: 8
-      httpGet:
-        host: 127.0.0.1
-        path: /health
-        port: 2381
-        scheme: HTTP
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
-    name: etcd
+      - --initial-cluster=master-0.cluster-2.dobry-kot.ru=https://master-0.cluster-2.dobry-kot.ru:2380,master-1.cluster-2.dobry-kot.ru=https://master-1.cluster-2.dobry-kot.ru:2380,master-2.cluster-2.dobry-kot.ru=https://master-2.cluster-2.dobry-kot.ru:2380
+      - --name={{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}
+      - --initial-advertise-peer-urls=https://{{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}:2380
+      - --advertise-client-urls=https://{{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}:2379
+  {{- with .Values.container.etcd }}
+    {{- toYaml .args | nindent 6 }}
+    image: {{ .image }}
+    imagePullPolicy: {{ .imagePullPolicy }}
+    livenessProbe: 
+      {{- toYaml .livenessProbe | nindent 6 }}
     resources:
-      requests:
-        cpu: 100m
-        memory: 100Mi
+      {{- toYaml .resources | nindent 6 }}
     startupProbe:
-      failureThreshold: 24
-      httpGet:
-        host: 127.0.0.1
-        path: /health
-        port: 2381
-        scheme: HTTP
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
+      {{- toYaml .startupProbe | nindent 6 }}
     volumeMounts:
     - mountPath: /var/lib/etcd
       name: etcd-data
@@ -75,6 +35,7 @@ spec:
       name: etcd-certs
     - mountPath: /etc/kubernetes/pki/ca
       name: ca
+  {{- end }} 
   hostNetwork: true
   priorityClassName: system-node-critical
   securityContext:

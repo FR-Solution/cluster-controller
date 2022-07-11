@@ -1,0 +1,52 @@
+---
+manifestDir: ".tmp"
+manifests:
+  - name: etcd
+    templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/etcd-template.yaml
+values:
+  global:
+    hostname: master-0
+    clusterName: cluster-1
+    baseDomain: dobry-kot.ru
+  container:
+    etcd:
+      args:
+        - --initial-cluster-token=etcd
+        - --initial-cluster-state=new
+        - --data-dir=/var/lib/etcd
+        - --strict-reconfig-check
+        - --peer-client-cert-auth=true
+        - --peer-auto-tls=true
+        - --client-cert-auth=true
+        - --trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
+        - --cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server.pem
+        - --key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server-key.pem
+        - --peer-trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
+        - --peer-cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer.pem
+        - --peer-key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer-key.pem
+        - --listen-client-urls=https://0.0.0.0:2379
+        - --listen-peer-urls=https://0.0.0.0:2380
+        - --listen-metrics-urls=http://0.0.0.0:2381
+      image: k8s.gcr.io/etcd:3.5.3-0
+      livenessProbe:
+        failureThreshold: 8
+        httpGet:
+          host: 127.0.0.1
+          path: /health
+          port: 2381
+          scheme: HTTP
+        initialDelaySeconds: 10
+        periodSeconds: 10
+        timeoutSeconds: 15
+      resources:
+        requests:
+          cpu: 100m
+          memory: 100Mi
+      startupProbe:
+        failureThreshold: 24
+        httpGet:
+          host: 127.0.0.1
+          path: /health
+          port: 2381
+          scheme: HTTP
+      imagePullPolicy: IfNotPresent

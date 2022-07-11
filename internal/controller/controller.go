@@ -19,7 +19,7 @@ func New(cfg Config) (*controller, error) {
 
 	for _, m := range cfg.Manifests {
 		if s.manifestIsNotExist(m.Name) {
-			if err := s.createManifest(m); err != nil {
+			if err := s.createManifest(m, cfg); err != nil {
 				return nil, fmt.Errorf("create manifest %s : %w", m.Name, err)
 			}
 		}
@@ -28,24 +28,24 @@ func New(cfg Config) (*controller, error) {
 	return s, nil
 }
 
-func (s *controller) createManifest(i Manifest) error {
-	templateData, err := os.ReadFile(i.TemplatePath)
+func (s *controller) createManifest(m Manifest, cfg Config) error {
+	templateData, err := os.ReadFile(m.TemplatePath)
 	if err != nil {
-		return fmt.Errorf("open template file %s : %w", i.TemplatePath, err)
+		return fmt.Errorf("open template file %s : %w", m.TemplatePath, err)
 	}
 
-	manifestTemplate, err := template.New(i.Name).Parse(string(templateData))
+	manifestTemplate, err := template.New(m.Name).Funcs(funcMap()).Parse(string(templateData))
 	if err != nil {
-		return fmt.Errorf("parse template %s : %w", i.TemplatePath, err)
+		return fmt.Errorf("parse template %s : %w", m.TemplatePath, err)
 	}
 
 	var manifestBuffer bytes.Buffer
-	if err = manifestTemplate.Execute(&manifestBuffer, i); err != nil {
-		return fmt.Errorf("fill in template %s with data %+v : %w", i.TemplatePath, i, err)
+	if err = manifestTemplate.Execute(&manifestBuffer, cfg); err != nil {
+		return fmt.Errorf("fill in template %s with data %+v : %w", m.TemplatePath, m, err)
 	}
 
-	if err = s.saveManifest(i.Name, manifestBuffer.Bytes()); err != nil {
-		return fmt.Errorf("save manifest %s: %w", i.Name, err)
+	if err = s.saveManifest(m.Name, manifestBuffer.Bytes()); err != nil {
+		return fmt.Errorf("save manifest %s: %w", m.Name, err)
 	}
 	return nil
 }
