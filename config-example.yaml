@@ -1,8 +1,14 @@
 ---
-manifestDir: ".tmp"
+manifestDir: "/tmp"
 manifests:
   - name: etcd
     templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/etcd-template.yaml
+  - name: kube-apiserver
+    templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/kube-apiserver-template.yaml
+  - name: kube-controller-manager
+    templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/kube-controller-manager-template.yaml
+  - name: kube-scheduler
+    templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/kube-scheduler-template.yaml
 values:
   global:
     hostname: master-0
