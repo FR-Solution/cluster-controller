@@ -14,44 +14,49 @@ values:
     hostname: master-0
     clusterName: cluster-1
     baseDomain: dobry-kot.ru
-  container:
+    serviceCIDR: 29.64.0.0/16
+
+  pod:
     etcd:
-      args:
-        - --initial-cluster-token=etcd
-        - --initial-cluster-state=new
-        - --data-dir=/var/lib/etcd
-        - --strict-reconfig-check
-        - --peer-client-cert-auth=true
-        - --peer-auto-tls=true
-        - --client-cert-auth=true
-      image: k8s.gcr.io/etcd:3.5.3-0
-      livenessProbe:
-        failureThreshold: 8
-        httpGet:
-          host: 127.0.0.1
-          path: /health
-          port: 2381
-          scheme: HTTP
-        initialDelaySeconds: 10
-        periodSeconds: 10
-        timeoutSeconds: 15
-      resources:
-        requests:
-          cpu: 100m
-          memory: 100Mi
-      startupProbe:
-        failureThreshold: 24
-        httpGet:
-          host: 127.0.0.1
-          path: /health
-          port: 2381
-          scheme: HTTP
-      imagePullPolicy: IfNotPresent
-  hostNetwork: true
-  priorityClassName: system-node-critical
-  securityContext:
-    seccompProfile:
-      type: RuntimeDefault
+      containers:
+        etcd:
+          args: 
+            - --initial-cluster-token=etcd
+            - --initial-cluster-state=new
+            - --data-dir=/var/lib/etcd
+            - --strict-reconfig-check
+            - --peer-client-cert-auth=true
+            - --peer-auto-tls=true
+            - --client-cert-auth=true
+          image: k8s.gcr.io/etcd:3.5.3-0
+          livenessProbe:
+            failureThreshold: 8
+            httpGet:
+              host: 127.0.0.1
+              path: /health
+              port: 2381
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 100Mi
+          startupProbe:
+            failureThreshold: 24
+            httpGet:
+              host: 127.0.0.1
+              path: /health
+              port: 2381
+              scheme: HTTP
+          imagePullPolicy: IfNotPresent
+      hostNetwork: true
+      priorityClassName: system-node-critical
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+
     kubeApiserver:
       containers:
         kubeApiserver:
@@ -72,7 +77,7 @@ values:
             - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,AlwaysPullImages,NodeRestriction
             - --enable-bootstrap-token-auth=true
             - --runtime-config=api/all=true
-            - --enable-aggregator-routing=true
+            - --enable-aggregator-routing=true 
             - --api-audiences=system:konnectivity-server
             - --requestheader-allowed-names=front-proxy-client
             - --requestheader-extra-headers-prefix=X-Remote-Extra-
@@ -86,7 +91,7 @@ values:
             - --kubelet-timeout=5s
             - --v=2
             - --cloud-provider=external
-          image: k8s.gcr.io/kube-apiserver:v1.23.5
+          image: k8s.gcr.io/kube-apiserver:v1.23.5 
           imagePullPolicy: IfNotPresent
           resources:
             requests:
@@ -125,6 +130,7 @@ values:
       securityContext:
         seccompProfile:
           type: RuntimeDefault
+
     kubeScheduler:
       containers:
         kubeScheduler:
