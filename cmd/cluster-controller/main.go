@@ -9,6 +9,10 @@ import (
 	"github.com/fraima/cluster-controller/internal/controller"
 )
 
+var (
+	Version = "undefined"
+)
+
 func main() {
 	loggerConfig := zap.NewProductionConfig()
 	loggerConfig.Level.SetLevel(zap.DebugLevel)
@@ -38,7 +42,7 @@ func main() {
 		zap.L().Fatal("read configuration", zap.Error(err))
 	}
 
-	zap.L().Debug("configuration", zap.Any("config", cfg), zap.String("kuberconfig", kuberconfigPath))
+	zap.L().Debug("configuration", zap.Any("config", cfg), zap.String("kuberconfig", kuberconfigPath), zap.String("version", Version))
 
 	cntrl, err := controller.New(
 		cfg.Controller,
