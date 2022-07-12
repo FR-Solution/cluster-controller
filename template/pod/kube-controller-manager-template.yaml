@@ -17,70 +17,27 @@ spec:
       - --tls-private-key-file=/etc/kubernetes/pki/certs/kube-controller-manager/system:kube-controller-manager-server-key.pem 
       - --client-ca-file=/etc/kubernetes/pki/ca/root-ca.pem 
       - --cluster-signing-cert-file=/etc/kubernetes/pki/ca/root-ca.pem 
-      - --cluster-signing-key-file=/etc/kubernetes/pki/ca/root-ca-key.pem 
+      # - --cluster-signing-key-file=/etc/kubernetes/pki/ca/root-ca-key.pem 
       - --requestheader-client-ca-file=/etc/kubernetes/pki/ca/front-proxy-ca.pem 
-      - --service-account-private-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-kubelet-client-key.pem 
+      - --service-account-private-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
       - --kubeconfig=/etc/kubernetes/kube-controller-manager/kubeconfig 
       - --authentication-kubeconfig=/etc/kubernetes/kube-controller-manager/kubeconfig 
       - --authorization-kubeconfig=/etc/kubernetes/kube-controller-manager/kubeconfig
       - --root-ca-file=/etc/kubernetes/pki/ca/root-ca.pem
       - --bind-address=0.0.0.0
-      - --secure-port=10257
-      - --allocate-node-cidrs=true
-      - --cluster-cidr=29.64.0.0/16
-      - --cluster-name=kubernetes
-      - --concurrent-deployment-syncs=5
-      - --concurrent-endpoint-syncs=5
-      - --concurrent-namespace-syncs=10
-      - --concurrent-replicaset-syncs=20
-      - --concurrent-resource-quota-syncs=5
-      - --horizontal-pod-autoscaler-sync-period=30s
-      - --kube-api-burst=120
-      - --kube-api-qps=100
-      - --leader-elect=true
-      - --leader-elect-lease-duration=15s
-      - --leader-elect-renew-deadline=10s
-      - --leader-elect-retry-period=2s
-      - --namespace-sync-period=2m0s
-      - --node-cidr-mask-size=24
-      - --node-monitor-grace-period=40s
-      - --node-monitor-period=5s
-      - --node-startup-grace-period=1m0s
-      - --pod-eviction-timeout=30s
-      - --profiling=false
-      - --resource-quota-sync-period=5m0s
-      - --terminated-pod-gc-threshold=0
-      - --use-service-account-credentials=true
-      - --controllers=bootstrapsigner,tokencleaner,cloud-node-lifecycle,csrapproving,csrcleaner,csrsigning
-      - --authorization-always-allow-paths=/healthz,/metrics
-      - --feature-gates=RotateKubeletServerCertificate=true
-      - --v=2
-    image: k8s.gcr.io/kube-controller-manager:v1.23.5
-    imagePullPolicy: IfNotPresent
-    livenessProbe:
-      failureThreshold: 8
-      httpGet:
-        host: 127.0.0.1
-        path: /healthz
-        port: 10257
-        scheme: HTTPS
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
-    name: kube-controller-manager
+
+  {{- with .Values.pod.kubeScheduler }}
+    {{- with .containers.kubeScheduler }}
+    {{- toYaml .args | nindent 6 }}
+    image: {{ .image }}
+    imagePullPolicy: {{ .imagePullPolicy }}
     resources:
-      requests:
-        cpu: 200m
+      {{- toYaml .resources | nindent 6 }}
+    livenessProbe: 
+      {{- toYaml .livenessProbe | nindent 6 }}
     startupProbe:
-      failureThreshold: 24
-      httpGet:
-        host: 127.0.0.1
-        path: /healthz
-        port: 10257
-        scheme: HTTPS
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
+      {{- toYaml .startupProbe | nindent 6 }}
+    {{- end }}
     volumeMounts:
     - mountPath: /etc/ssl/certs
       name: ca-certs
@@ -105,11 +62,11 @@ spec:
     - mountPath: /usr/share/ca-certificates
       name: usr-share-ca-certificates
       readOnly: true
-  hostNetwork: true
-  priorityClassName: system-node-critical
-  securityContext:
-    seccompProfile:
-      type: RuntimeDefault
+  hostNetwork: {{ .hostNetwork }}
+  priorityClassName: {{ .priorityClassName }}
+  securityContext: 
+    {{- toYaml .securityContext | nindent 6 }}
+  {{- end }} 
   volumes:
   - hostPath:
       path: /etc/ssl/certs

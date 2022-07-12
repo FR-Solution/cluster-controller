@@ -10,11 +10,17 @@ metadata:
   namespace: kube-system
 spec:
   containers:
-  - command:
+  - name: kube-apiserver
+    command:
     - kube-apiserver     
     args:
-      - --etcd-servers=${etcd_advertise_client_urls}
-      - --cloud-provider=external
+      #####  --etcd-servers= Формируется по маске ','.join(etcdServers) где
+      #### etcdServers = [
+      ####    https://{instanceName}.{clusterName}.{domain}:2379
+      #### ] <-- кол-во эндпоинтов зависит от кол-ва мастеров (список мастеров можно передать в базовом конфиге)
+      - --etcd-servers=https://master-0.cluster-2.dobry-kot.ru:2379,https://master-1.cluster-2.dobry-kot.ru:2379,https://master-2.cluster-2.dobry-kot.ru:2379
+      
+      ##### Сертификаты - параметаризируются только пути - нужно завязываеть на выпускаемых сертификатах.
       - --tls-cert-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server.pem
       - --tls-private-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server-key.pem
       - --client-ca-file=/etc/kubernetes/pki/ca/root-ca.pem
@@ -26,77 +32,38 @@ spec:
       - --proxy-client-cert-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client.pem
       - --proxy-client-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client-key.pem
       - --requestheader-client-ca-file=/etc/kubernetes/pki/ca/front-proxy-ca.pem
-      - --service-account-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
-      - --service-account-signing-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa-key.pem
-      - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-      - --kubelet-timeout=5s
-      - --v=2
-      - --service-cluster-ip-range=29.64.0.0/16
-      - --secure-port=6443
-      - --advertise-address=29.64.0.1
-      - --requestheader-allowed-names=front-proxy-client
-      - --requestheader-extra-headers-prefix=X-Remote-Extra-
-      - --requestheader-group-headers=X-Remote-Group
-      - --requestheader-username-headers=X-Remote-User
-      - --requestheader-allowed-names=aggregator
-      - --allow-privileged=true
-      - --authorization-mode=Node,RBAC
+      - --service-account-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pub
+      - --service-account-signing-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
+      #### -> CIDR для сервисной подсети (указывается обязательно - параметаризируется)
+      - --service-cluster-ip-range={{ .Values.global.serviceCIDR }}
+      #### -> эта штука нужна когда надо указать адрес АПИ не локальный а адрес ЛБ от АПИ
+      #### На уровне Терраформа прозрачно не получилось сделать нужно придумать функцию, которая будет резолвить ДНС имя и вытаскивать IP
+      ###--> 
+      # - --secure-port=6443
+      # - --advertise-address=29.64.0.1
+
+      ### Тут указывать список ip адресов с на которые сможет принимать трафик
+      ### 127.0.0.1,127.0.0.6,{LB_API_IP}
+      ###--> Если не можем затащить нужные адреса указываем все 0.0.0.0
       - --bind-address=0.0.0.0
-      - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,AlwaysPullImages,NodeRestriction
-      - --enable-bootstrap-token-auth=true
-      - --runtime-config=api/all=true
-      - --enable-aggregator-routing=true 
-      - --api-audiences=system:konnectivity-server
-      - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-      - --anonymous-auth=true
-      - --audit-log-maxage=30
-      - --audit-log-maxbackup=10
-      - --audit-log-maxsize=1000
-      - --audit-log-mode=batch
+
+      ### Отдельный шаблон с политиками - параметаризируемый.
       - --audit-policy-file=/etc/kubernetes/kube-apiserver/audit-policy.yaml
-      - --event-ttl=1h0m0s
-      - --kubernetes-service-node-port=0
-      - --master-service-namespace=default
-      - --max-connection-bytes-per-sec=0
-      - --max-requests-inflight=400
-      - --min-request-timeout=1800
-      - --profiling=false
-      - --feature-gates=RotateKubeletServerCertificate=true
-    image: k8s.gcr.io/kube-apiserver:v1.23.5  
-    imagePullPolicy: IfNotPresent
-    livenessProbe:
-      failureThreshold: 8
-      httpGet:
-        host: 127.0.0.1
-        path: /livez
-        port: 6443
-        scheme: HTTPS
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
-    name: kube-apiserver
-    readinessProbe:
-      failureThreshold: 3
-      httpGet:
-        host: 127.0.0.1
-        path: /readyz
-        port: 6443
-        scheme: HTTPS
-      periodSeconds: 1
-      timeoutSeconds: 15
+  {{- with .Values.pod.kubeApiserver }}
+    {{- with .containers.kubeApiserver }}
+    {{- toYaml .args | nindent 6 }}
+    image: {{ .image }}
+    imagePullPolicy: {{ .imagePullPolicy }}
     resources:
-      requests:
-        cpu: 250m
+      {{- toYaml .resources | nindent 6 }}
+    livenessProbe: 
+      {{- toYaml .livenessProbe | nindent 6 }}
+    readinessProbe:
+      {{- toYaml .readinessProbe | nindent 6 }}
     startupProbe:
-      failureThreshold: 24
-      httpGet:
-        host: 127.0.0.1
-        path: /livez
-        port: 6443
-        scheme: HTTPS
-      initialDelaySeconds: 10
-      periodSeconds: 10
-      timeoutSeconds: 15
+      {{- toYaml .startupProbe | nindent 6 }}
+    {{- end }}
+  ##### Пока не начали тянуть переменные путей сертификатов блоки волюмов не трогаем
     volumeMounts:
     - mountPath: /etc/ssl/certs
       name: ca-certs
@@ -119,11 +86,11 @@ spec:
     - mountPath: /usr/share/ca-certificates
       name: usr-share-ca-certificates
       readOnly: true
-  hostNetwork: true
-  priorityClassName: system-node-critical
-  securityContext:
-    seccompProfile:
-      type: RuntimeDefault
+  hostNetwork: {{ .hostNetwork }}
+  priorityClassName: {{ .priorityClassName }}
+  securityContext: 
+    {{- toYaml .securityContext | nindent 6 }}
+  {{- end }} 
   volumes:
   - hostPath:
       path: /etc/ssl/certs

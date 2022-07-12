@@ -4,22 +4,23 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"path"
 	"text/template"
 )
 
 type controller struct {
 	manifestDir string
+	Values      map[string]interface{}
 }
 
 func New(cfg Config) (*controller, error) {
 	s := &controller{
 		manifestDir: cfg.ManifestsDir,
+		Values:      cfg.Values,
 	}
 
 	for _, m := range cfg.Manifests {
 		if s.manifestIsNotExist(m.Name) {
-			if err := s.createManifest(m, cfg); err != nil {
+			if err := s.createManifest(m); err != nil {
 				return nil, fmt.Errorf("create manifest %s : %w", m.Name, err)
 			}
 		}
@@ -28,7 +29,7 @@ func New(cfg Config) (*controller, error) {
 	return s, nil
 }
 
-func (s *controller) createManifest(m Manifest, cfg Config) error {
+func (s *controller) createManifest(m Manifest) error {
 	templateData, err := os.ReadFile(m.TemplatePath)
 	if err != nil {
 		return fmt.Errorf("open template file %s : %w", m.TemplatePath, err)
@@ -40,7 +41,7 @@ func (s *controller) createManifest(m Manifest, cfg Config) error {
 	}
 
 	var manifestBuffer bytes.Buffer
-	if err = manifestTemplate.Execute(&manifestBuffer, cfg); err != nil {
+	if err = manifestTemplate.Execute(&manifestBuffer, s.Values); err != nil {
 		return fmt.Errorf("fill in template %s with data %+v : %w", m.TemplatePath, m, err)
 	}
 
@@ -48,15 +49,4 @@ func (s *controller) createManifest(m Manifest, cfg Config) error {
 		return fmt.Errorf("save manifest %s: %w", m.Name, err)
 	}
 	return nil
-}
-
-func (s *controller) saveManifest(name string, data []byte) error {
-	path := path.Join(s.manifestDir, name+".yaml")
-	return os.WriteFile(path, data, 0666)
-}
-
-func (s *controller) manifestIsNotExist(name string) bool {
-	path := path.Join(s.manifestDir, name+".yaml")
-	_, err := os.Stat(path)
-	return os.IsNotExist(err)
 }
