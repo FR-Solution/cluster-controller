@@ -41,7 +41,7 @@ func (s *controller) createManifest(m Manifest) error {
 	}
 
 	var manifestBuffer bytes.Buffer
-	if err = manifestTemplate.Execute(&manifestBuffer, s.Values); err != nil {
+	if err = manifestTemplate.Execute(&manifestBuffer, s); err != nil {
 		return fmt.Errorf("fill in template %s with data %+v : %w", m.TemplatePath, m, err)
 	}
 
