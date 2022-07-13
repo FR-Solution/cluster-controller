@@ -3,8 +3,12 @@ package controller
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"text/template"
+
+	"github.com/fraima/cluster-controller/internal/utils"
+	"gopkg.in/yaml.v3"
 )
 
 type controller struct {
@@ -15,8 +19,18 @@ type controller struct {
 func New(cfg Config) (*controller, error) {
 	s := &controller{
 		manifestDir: cfg.ManifestsDir,
-		Values:      cfg.Values,
 	}
+
+	data, err := ioutil.ReadFile(cfg.BaseValuesFile)
+	if err != nil {
+		return nil, fmt.Errorf("read base values path: %s : %w", cfg.BaseValuesFile, err)
+	}
+
+	if err := yaml.Unmarshal(data, &s.Values); err != nil {
+		return nil, fmt.Errorf("unmarshal base values: %w", err)
+	}
+
+	s.MergeValues(cfg.ExtraValues)
 
 	for _, m := range cfg.Manifests {
 		if s.manifestIsNotExist(m.Name) {
@@ -27,6 +41,10 @@ func New(cfg Config) (*controller, error) {
 	}
 
 	return s, nil
+}
+
+func (s *controller) MergeValues(extraValues map[string]interface{}) {
+	utils.MergeValues(s.Values, extraValues)
 }
 
 func (s *controller) createManifest(m Manifest) error {
