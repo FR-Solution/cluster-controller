@@ -34,6 +34,14 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 	return cli, nil
 }
 
+func (c *Client) Ping() error {
+	_, err := clientset.NewForConfig(c.restConfig)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Client) CreateCDR(crdData []byte) error {
 	var tmp map[string]any
 	if err := yaml.Unmarshal(crdData, &tmp); err != nil {

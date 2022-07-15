@@ -7,6 +7,7 @@ import (
 
 	"github.com/fraima/cluster-controller/internal/config"
 	"github.com/fraima/cluster-controller/internal/controller"
+	"github.com/fraima/cluster-controller/internal/kubernetes"
 )
 
 var (
@@ -44,7 +45,13 @@ func main() {
 
 	zap.L().Debug("configuration", zap.Any("config", cfg), zap.String("kuberconfig", kuberconfigPath), zap.String("version", Version))
 
+	kubeClient, err := kubernetes.NewClient(kuberconfigPath)
+	for err != nil {
+		zap.L().Fatal("init kubernetes", zap.Error(err))
+	}
+
 	cntrl, err := controller.New(
+		kubeClient,
 		cfg.Controller,
 	)
 	if err != nil {
@@ -52,10 +59,4 @@ func main() {
 	}
 
 	_ = cntrl
-	// kubeClient, err := kubernetes.NewClient(kuberconfigPath)
-	// for err != nil {
-	// 	zap.L().Fatal("connect to Kubernetes", zap.Error(err))
-	// 	kubeClient, err = kubernetes.NewClient(kuberconfigPath)
-	// }
-	// zap.L().Info("connected to kubernetes")
 }
