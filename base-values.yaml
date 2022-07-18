@@ -119,8 +119,6 @@ pod:
           kubelet-timeout: 5s
           v: 2
           cloud-provider: external
-        args:
-
 
         image: k8s.gcr.io/kube-apiserver:v1.23.5 
         imagePullPolicy: IfNotPresent
