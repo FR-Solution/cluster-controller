@@ -13,6 +13,8 @@ pod:
           name: master-0.cluster-2.dobry-kot.ru
           initial-advertise-peer-urls: https://master-0.cluster-2.dobry-kot.ru:2380
           advertise-client-urls: https://master-0.cluster-2.dobry-kot.ru:2379
+          initial-cluster-token: etcd
+          initial-cluster-state: new
 
         staticArgs:
           trusted-ca-file: /etc/kubernetes/pki/ca/etcd-ca.pem
@@ -26,8 +28,6 @@ pod:
           listen-metrics-urls: http://0.0.0.0:2381
 
         extraArgs:
-          initial-cluster-token: etcd
-          initial-cluster-state: new
           data-dir: /var/lib/etcd
           strict-reconfig-check: 
           peer-client-cert-auth: true
