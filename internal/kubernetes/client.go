@@ -2,15 +2,14 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v2"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -34,37 +33,17 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 	return cli, nil
 }
 
-func (c *Client) Ping() error {
-	_, err := clientset.NewForConfig(c.restConfig)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Client) CreateCDR(crdData []byte) error {
-	var tmp map[string]any
-	if err := yaml.Unmarshal(crdData, &tmp); err != nil {
-		return fmt.Errorf("parse manifest to cdr struct: %w", err)
-	}
-	data, err := json.Marshal(tmp)
-	if err != nil {
-		return fmt.Errorf("parse manifest to cdr struct: %w", err)
-	}
-
-	crd := new(v1beta1.CustomResourceDefinition)
-	if err := json.Unmarshal(data, crd); err != nil {
-		return fmt.Errorf("parse manifest to cdr struct: %w", err)
-	}
-
+func (c *Client) CreateCRD() error {
 	kubeClient, err := clientset.NewForConfig(c.restConfig)
 	if err != nil {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
-	_, err = kubeClient.ApiextensionsV1beta1().CustomResourceDefinitions().Create(context.TODO(), crd, v1.CreateOptions{})
+
+	_, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), staticpodCRD, v1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("create cdr in kubernetes: %w", err)
 	}
+
 	return nil
 }
 

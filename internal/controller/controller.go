@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"text/template"
-	"time"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -15,8 +14,7 @@ import (
 )
 
 type K8sClient interface {
-	Ping() error
-	CreateCDR(crdData []byte) error
+	CreateCRD() error
 }
 
 type controller struct {
@@ -53,19 +51,12 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 	}
 
 	for {
-		time.Sleep(30 * time.Second)
-		if err := s.cli.Ping(); err != nil {
-			zap.L().Warn("ping k8s cluster", zap.Error(err))
+		// time.Sleep(10 * time.Second)
+		if err := s.cli.CreateCRD(); err != nil {
+			zap.L().Warn("create crd", zap.Error(err))
 			continue
 		}
 		break
-	}
-
-	for name, data := range manifest {
-		if err := s.cli.CreateCDR(data); err != nil {
-			return nil, fmt.Errorf("crete CDR %s: %w", name, err)
-		}
-		zap.L().Debug("cdr create", zap.String("name", name))
 	}
 
 	return s, nil
