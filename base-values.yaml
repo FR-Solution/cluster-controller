@@ -13,6 +13,8 @@ pod:
           name: master-0.cluster-2.dobry-kot.ru
           initial-advertise-peer-urls: https://master-0.cluster-2.dobry-kot.ru:2380
           advertise-client-urls: https://master-0.cluster-2.dobry-kot.ru:2379
+          initial-cluster-token: etcd
+          initial-cluster-state: new
 
         staticArgs:
           trusted-ca-file: /etc/kubernetes/pki/ca/etcd-ca.pem
@@ -26,8 +28,6 @@ pod:
           listen-metrics-urls: http://0.0.0.0:2381
 
         extraArgs:
-          initial-cluster-token: etcd
-          initial-cluster-state: new
           data-dir: /var/lib/etcd
           strict-reconfig-check: 
           peer-client-cert-auth: true
@@ -111,7 +111,6 @@ pod:
           requestheader-extra-headers-prefix: X-Remote-Extra-
           requestheader-group-headers: X-Remote-Group
           requestheader-username-headers: X-Remote-User
-          requestheader-allowed-names: aggregator
           allow-privileged: true
           authorization-mode: Node,RBAC
           service-account-issuer: https://kubernetes.default.svc.cluster.local
@@ -119,8 +118,6 @@ pod:
           kubelet-timeout: 5s
           v: 2
           cloud-provider: external
-        args:
-
 
         image: k8s.gcr.io/kube-apiserver:v1.23.5 
         imagePullPolicy: IfNotPresent
