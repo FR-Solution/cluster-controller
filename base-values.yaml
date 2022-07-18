@@ -112,7 +112,6 @@ pod:
           requestheader-extra-headers-prefix: X-Remote-Extra-
           requestheader-group-headers: X-Remote-Group
           requestheader-username-headers: X-Remote-User
-          requestheader-allowed-names: aggregator
           allow-privileged: true
           authorization-mode: Node,RBAC
           service-account-issuer: https://kubernetes.default.svc.cluster.local
