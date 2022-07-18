@@ -1,5 +1,5 @@
-apiVersion: staticpod.fraima.io/v1beta
-kind: etcd
+apiVersion: fraima.io/v1beta1
+kind: staticpod
 metadata:
     annotations: {}
     labels: {}
