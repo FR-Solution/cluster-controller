@@ -13,15 +13,18 @@ spec:
   - command:
     - kube-scheduler
     args:
-      - --authentication-kubeconfig=/etc/kubernetes/kube-scheduler/kubeconfig 
-      - --authorization-kubeconfig=/etc/kubernetes/kube-scheduler/kubeconfig 
-      - --kubeconfig=/etc/kubernetes/kube-scheduler/kubeconfig 
-      - --tls-cert-file=/etc/kubernetes/pki/certs/kube-scheduler/system:kube-scheduler-server.pem 
-      - --tls-private-key-file=/etc/kubernetes/pki/certs/kube-scheduler/system:kube-scheduler-server-key.pem 
-      - --bind-address=0.0.0.0
+
   {{- with .Values.pod.kubeScheduler }}
     {{- with .containers.kubeScheduler }}
-    {{- toYaml .args | nindent 6 }}
+    {{- range $key, $val := .noOverrideArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .staticArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .extraArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
     image: {{ .image }}
     imagePullPolicy: {{ .imagePullPolicy }}
     resources:

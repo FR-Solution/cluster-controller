@@ -3,18 +3,37 @@ global:
   clusterName: cluster-1
   baseDomain: dobry-kot.ru
   serviceCIDR: 29.64.0.0/16
+
 pod:
   etcd:
     containers:
       etcd:
-        args:
-          - --initial-cluster-token=etcd
-          - --initial-cluster-state=new
-          - --data-dir=/var/lib/etcd
-          - --strict-reconfig-check
-          - --peer-client-cert-auth=true
-          - --peer-auto-tls=true
-          - --client-cert-auth=true
+        noOverrideArgs:
+          initial-cluster: master-0.cluster-2.dobry-kot.ru=https://master-0.cluster-2.dobry-kot.ru:2380,master-1.cluster-2.dobry-kot.ru=https://master-1.cluster-2.dobry-kot.ru:2380,master-2.cluster-2.dobry-kot.ru=https://master-2.cluster-2.dobry-kot.ru:2380
+          name: master-0.cluster-2.dobry-kot.ru
+          initial-advertise-peer-urls: https://master-0.cluster-2.dobry-kot.ru:2380
+          advertise-client-urls: https://master-0.cluster-2.dobry-kot.ru:2379
+
+        staticArgs:
+          trusted-ca-file: /etc/kubernetes/pki/ca/etcd-ca.pem
+          cert-file: /etc/kubernetes/pki/certs/etcd/system:etcd-server.pem
+          key-file: /etc/kubernetes/pki/certs/etcd/system:etcd-server-key.pem
+          peer-trusted-ca-file: /etc/kubernetes/pki/ca/etcd-ca.pem
+          peer-cert-file: /etc/kubernetes/pki/certs/etcd/system:etcd-peer.pem
+          peer-key-file: /etc/kubernetes/pki/certs/etcd/system:etcd-peer-key.pem
+          listen-client-urls: https://0.0.0.0:2379
+          listen-peer-urls: https://0.0.0.0:2380
+          listen-metrics-urls: http://0.0.0.0:2381
+
+        extraArgs:
+          initial-cluster-token: etcd
+          initial-cluster-state: new
+          data-dir: /var/lib/etcd
+          strict-reconfig-check: 
+          peer-client-cert-auth: true
+          peer-auto-tls: true
+          client-cert-auth: true
+
         image: k8s.gcr.io/etcd:3.5.3-0
         livenessProbe:
           failureThreshold: 8
@@ -47,38 +66,64 @@ pod:
   kubeApiserver:
     containers:
       kubeApiserver:
+        noOverrideArgs:
+          etcd-servers: https://master-0.cluster-2.dobry-kot.ru:2379,https://master-1.cluster-2.dobry-kot.ru:2379,https://master-2.cluster-2.dobry-kot.ru:2379
+
+        staticArgs:
+          tls-cert-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server.pem
+          tls-private-key-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server-key.pem
+          client-ca-file: /etc/kubernetes/pki/ca/root-ca.pem
+          etcd-cafile: /etc/kubernetes/pki/ca/etcd-ca.pem
+          etcd-certfile: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-etcd-client.pem
+          etcd-keyfile: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-etcd-client-key.pem
+          kubelet-client-certificate: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-kubelet-client.pem
+          kubelet-client-key: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-kubelet-client-key.pem
+          proxy-client-cert-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client.pem
+          proxy-client-key-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client-key.pem
+          requestheader-client-ca-file: /etc/kubernetes/pki/ca/front-proxy-ca.pem
+          service-account-key-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pub
+          service-account-signing-key-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
+          
+        extraArgs:
+          service-cluster-ip-range: 29.64.0.0/16
+          # secure-port: 6443
+          # advertise-address: 29.64.0.1
+          bind-address: 0.0.0.0
+          audit-policy-file: /etc/kubernetes/kube-apiserver/audit-policy.yaml
+          event-ttl: 1h0m0s
+          kubernetes-service-node-port: 0
+          master-service-namespace: default
+          max-connection-bytes-per-sec: 0
+          max-requests-inflight: 400
+          min-request-timeout: 1800
+          profiling: false
+          feature-gates: RotateKubeletServerCertificate=true
+          anonymous-auth: false
+          audit-log-maxage: 30
+          audit-log-maxbackup: 10
+          audit-log-maxsize: 1000
+          audit-log-mode: batch
+          enable-admission-plugins: NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,AlwaysPullImages,NodeRestriction
+          enable-bootstrap-token-auth: true
+          runtime-config=api/all: true
+          enable-aggregator-routing: true 
+          api-audiences: system:konnectivity-server
+          requestheader-allowed-names: front-proxy-client
+          requestheader-extra-headers-prefix: X-Remote-Extra-
+          requestheader-group-headers: X-Remote-Group
+          requestheader-username-headers: X-Remote-User
+          requestheader-allowed-names: aggregator
+          allow-privileged: true
+          authorization-mode: Node,RBAC
+          service-account-issuer: https://kubernetes.default.svc.cluster.local
+          kubelet-preferred-address-types: InternalIP,ExternalIP,Hostname
+          kubelet-timeout: 5s
+          v: 2
+          cloud-provider: external
         args:
-          - --event-ttl=1h0m0s
-          - --kubernetes-service-node-port=0
-          - --master-service-namespace=default
-          - --max-connection-bytes-per-sec=0
-          - --max-requests-inflight=400
-          - --min-request-timeout=1800
-          - --profiling=false
-          - --feature-gates=RotateKubeletServerCertificate=true
-          - --anonymous-auth=false
-          - --audit-log-maxage=30
-          - --audit-log-maxbackup=10
-          - --audit-log-maxsize=1000
-          - --audit-log-mode=batch
-          - --enable-admission-plugins=NamespaceLifecycle,LimitRanger,ServiceAccount,DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,AlwaysPullImages,NodeRestriction
-          - --enable-bootstrap-token-auth=true
-          - --runtime-config=api/all=true
-          - --enable-aggregator-routing=true
-          - --api-audiences=system:konnectivity-server
-          - --requestheader-allowed-names=front-proxy-client
-          - --requestheader-extra-headers-prefix=X-Remote-Extra-
-          - --requestheader-group-headers=X-Remote-Group
-          - --requestheader-username-headers=X-Remote-User
-          - --requestheader-allowed-names=aggregator
-          - --allow-privileged=true
-          - --authorization-mode=Node,RBAC
-          - --service-account-issuer=https://kubernetes.default.svc.cluster.local
-          - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
-          - --kubelet-timeout=5s
-          - --v=2
-          - --cloud-provider=external
-        image: k8s.gcr.io/kube-apiserver:v1.23.5
+
+
+        image: k8s.gcr.io/kube-apiserver:v1.23.5 
         imagePullPolicy: IfNotPresent
         resources:
           requests:
@@ -121,9 +166,20 @@ pod:
   kubeScheduler:
     containers:
       kubeScheduler:
-        args:
-          - --leader-elect=true
-          - --secure-port=10259
+        noOverrideArgs:
+
+        staticArgs:
+          authentication-kubeconfig: /etc/kubernetes/kube-scheduler/kubeconfig 
+          authorization-kubeconfig: /etc/kubernetes/kube-scheduler/kubeconfig 
+          kubeconfig: /etc/kubernetes/kube-scheduler/kubeconfig 
+          tls-cert-file: /etc/kubernetes/pki/certs/kube-scheduler/system:kube-scheduler-server.pem 
+          tls-private-key-file: /etc/kubernetes/pki/certs/kube-scheduler/system:kube-scheduler-server-key.pem 
+          bind-address: 0.0.0.0
+
+        extraArgs:
+          leader-elect: true
+          secure-port: 10259
+
         image: k8s.gcr.io/kube-scheduler:v1.23.5
         imagePullPolicy: IfNotPresent
         livenessProbe:
@@ -159,37 +215,54 @@ pod:
   kubeControllerManager:
     containers:
       kubeControllerManager:
-        args:
-          - --v=2
-          - --secure-port=10257
-          - --allocate-node-cidrs=true
-          - --cluster-cidr=29.64.0.0/16
-          - --cluster-name=kubernetes
-          - --concurrent-deployment-syncs=5
-          - --concurrent-endpoint-syncs=5
-          - --concurrent-namespace-syncs=10
-          - --concurrent-replicaset-syncs=20
-          - --concurrent-resource-quota-syncs=5
-          - --horizontal-pod-autoscaler-sync-period=30s
-          - --kube-api-burst=120
-          - --kube-api-qps=100
-          - --leader-elect=true
-          - --leader-elect-lease-duration=15s
-          - --leader-elect-renew-deadline=10s
-          - --leader-elect-retry-period=2s
-          - --namespace-sync-period=2m0s
-          - --node-cidr-mask-size=24
-          - --node-monitor-grace-period=40s
-          - --node-monitor-period=5s
-          - --node-startup-grace-period=1m0s
-          - --pod-eviction-timeout=30s
-          - --profiling=false
-          - --resource-quota-sync-period=5m0s
-          - --terminated-pod-gc-threshold=0
-          - --use-service-account-credentials=true
-          - --controllers=*,bootstrapsigner,tokencleaner,cloud-node-lifecycle,csrapproving,csrcleaner,csrsigning
-          - --authorization-always-allow-paths=/healthz,/metrics
-          - --feature-gates=RotateKubeletServerCertificate=true
+        noOverrideArgs:
+
+        staticArgs:
+          tls-cert-file: /etc/kubernetes/pki/certs/kube-controller-manager/system:kube-controller-manager-server.pem 
+          tls-private-key-file: /etc/kubernetes/pki/certs/kube-controller-manager/system:kube-controller-manager-server-key.pem 
+          client-ca-file: /etc/kubernetes/pki/ca/root-ca.pem 
+          cluster-signing-cert-file: /etc/kubernetes/pki/ca/root-ca.pem 
+          cluster-signing-key-file: /etc/kubernetes/pki/ca/root-ca-key.pem 
+          requestheader-client-ca-file: /etc/kubernetes/pki/ca/front-proxy-ca.pem 
+          service-account-private-key-file: /etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
+          kubeconfig: /etc/kubernetes/kube-controller-manager/kubeconfig 
+          authentication-kubeconfig: /etc/kubernetes/kube-controller-manager/kubeconfig 
+          authorization-kubeconfig: /etc/kubernetes/kube-controller-manager/kubeconfig
+          root-ca-file: /etc/kubernetes/pki/ca/root-ca.pem
+          
+        extraArgs:
+          v: 2
+          bind-address: 0.0.0.0
+          secure-port: 10257
+          allocate-node-cidrs: true
+          cluster-cidr: 29.64.0.0/16
+          cluster-name: kubernetes
+          concurrent-deployment-syncs: 5
+          concurrent-endpoint-syncs: 5
+          concurrent-namespace-syncs: 10
+          concurrent-replicaset-syncs: 20
+          concurrent-resource-quota-syncs: 5
+          horizontal-pod-autoscaler-sync-period: 30s
+          kube-api-burst: 120
+          kube-api-qps: 100
+          leader-elect: true
+          leader-elect-lease-duration: 15s
+          leader-elect-renew-deadline: 10s
+          leader-elect-retry-period: 2s
+          namespace-sync-period: 2m0s
+          node-cidr-mask-size: 24
+          node-monitor-grace-period: 40s
+          node-monitor-period: 5s
+          node-startup-grace-period: 1m0s
+          pod-eviction-timeout: 30s
+          profiling: false
+          resource-quota-sync-period: 5m0s
+          terminated-pod-gc-threshold: 0
+          use-service-account-credentials: true
+          controllers: "*,bootstrapsigner,tokencleaner,cloud-node-lifecycle,csrapproving,csrcleaner,csrsigning"
+          authorization-always-allow-paths: /healthz,/metrics
+          feature-gates: RotateKubeletServerCertificate=true
+
         image: k8s.gcr.io/kube-controller-manager:v1.23.5
         imagePullPolicy: IfNotPresent
         livenessProbe:
