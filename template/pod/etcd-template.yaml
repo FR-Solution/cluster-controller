@@ -14,22 +14,17 @@ spec:
     command:
       - etcd
     args:
-      - --initial-cluster=master-0.cluster-2.dobry-kot.ru=https://master-0.cluster-2.dobry-kot.ru:2380,master-1.cluster-2.dobry-kot.ru=https://master-1.cluster-2.dobry-kot.ru:2380,master-2.cluster-2.dobry-kot.ru=https://master-2.cluster-2.dobry-kot.ru:2380
-      - --name={{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}
-      - --initial-advertise-peer-urls=https://{{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}:2380
-      - --advertise-client-urls=https://{{ .Values.global.hostname }}.{{ .Values.global.clusterName }}.{{ .Values.global.baseDomain }}:2379
-      - --trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
-      - --cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server.pem
-      - --key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-server-key.pem
-      - --peer-trusted-ca-file=/etc/kubernetes/pki/ca/etcd-ca.pem
-      - --peer-cert-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer.pem
-      - --peer-key-file=/etc/kubernetes/pki/certs/etcd/system:etcd-peer-key.pem
-      - --listen-client-urls=https://0.0.0.0:2379
-      - --listen-peer-urls=https://0.0.0.0:2380
-      - --listen-metrics-urls=http://0.0.0.0:2381
     {{- with .Values.pod.etcd }}
       {{- with .containers.etcd }}
-    {{- toYaml .args | nindent 6 }}
+    {{- range $key, $val := .noOverrideArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .staticArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .extraArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
     image: {{ .image }}
     imagePullPolicy: {{ .imagePullPolicy }}
     livenessProbe: 
@@ -46,11 +41,11 @@ spec:
     - mountPath: /etc/kubernetes/pki/ca
       name: ca
     {{- end }}
+  {{- end }}
   hostNetwork: {{ .hostNetwork }}
   priorityClassName: {{ .priorityClassName }}
   securityContext:
     {{- toYaml .resources | nindent 6 }}
-  {{- end }}
   volumes:
   - hostPath:
       path: /etc/kubernetes/pki/certs/etcd

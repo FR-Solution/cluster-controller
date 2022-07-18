@@ -1,1 +1,4 @@
 test/
+config-example-dk.yaml
+.gitignore
+cluster-controller

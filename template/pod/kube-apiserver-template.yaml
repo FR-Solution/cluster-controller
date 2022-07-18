@@ -12,46 +12,19 @@ spec:
   containers:
   - name: kube-apiserver
     command:
-    - kube-apiserver     
+    - kube-apiserver
     args:
-      #####  --etcd-servers= Формируется по маске ','.join(etcdServers) где
-      #### etcdServers = [
-      ####    https://{instanceName}.{clusterName}.{domain}:2379
-      #### ] <-- кол-во эндпоинтов зависит от кол-ва мастеров (список мастеров можно передать в базовом конфиге)
-      - --etcd-servers=https://master-0.cluster-2.dobry-kot.ru:2379,https://master-1.cluster-2.dobry-kot.ru:2379,https://master-2.cluster-2.dobry-kot.ru:2379
-      
-      ##### Сертификаты - параметаризируются только пути - нужно завязываеть на выпускаемых сертификатах.
-      - --tls-cert-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server.pem
-      - --tls-private-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-server-key.pem
-      - --client-ca-file=/etc/kubernetes/pki/ca/root-ca.pem
-      - --etcd-cafile=/etc/kubernetes/pki/ca/etcd-ca.pem
-      - --etcd-certfile=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-etcd-client.pem
-      - --etcd-keyfile=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-etcd-client-key.pem
-      - --kubelet-client-certificate=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-kubelet-client.pem
-      - --kubelet-client-key=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-kubelet-client-key.pem
-      - --proxy-client-cert-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client.pem
-      - --proxy-client-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-front-proxy-client-key.pem
-      - --requestheader-client-ca-file=/etc/kubernetes/pki/ca/front-proxy-ca.pem
-      - --service-account-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pub
-      - --service-account-signing-key-file=/etc/kubernetes/pki/certs/kube-apiserver/system:kube-apiserver-sa.pem
-      #### -> CIDR для сервисной подсети (указывается обязательно - параметаризируется)
-      - --service-cluster-ip-range={{ .Values.global.serviceCIDR }}
-      #### -> эта штука нужна когда надо указать адрес АПИ не локальный а адрес ЛБ от АПИ
-      #### На уровне Терраформа прозрачно не получилось сделать нужно придумать функцию, которая будет резолвить ДНС имя и вытаскивать IP
-      ###--> 
-      # - --secure-port=6443
-      # - --advertise-address=29.64.0.1
-
-      ### Тут указывать список ip адресов с на которые сможет принимать трафик
-      ### 127.0.0.1,127.0.0.6,{LB_API_IP}
-      ###--> Если не можем затащить нужные адреса указываем все 0.0.0.0
-      - --bind-address=0.0.0.0
-
-      ### Отдельный шаблон с политиками - параметаризируемый.
-      - --audit-policy-file=/etc/kubernetes/kube-apiserver/audit-policy.yaml
-  {{- with .Values.pod.kubeApiserver }}
-    {{- with .containers.kubeApiserver }}
-    {{- toYaml .args | nindent 6 }}
+    {{- with .Values.pod.kubeApiserver }}
+      {{- with .containers.kubeApiserver }}
+    {{- range $key, $val := .noOverrideArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .staticArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
+    {{- range $key, $val := .extraArgs }}
+      - --{{ $key }}={{ $val }}
+    {{- end }}
     image: {{ .image }}
     imagePullPolicy: {{ .imagePullPolicy }}
     resources:

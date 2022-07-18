@@ -1,5 +1,5 @@
 ---
-manifestsDir: /tmp/
+manifestsDir: /home/geo/projects/fraima/cluster-controller/
 manifests:
   - name: etcd
     templatePath: /home/geo/projects/fraima/cluster-controller/template/pod/etcd-template.yaml
