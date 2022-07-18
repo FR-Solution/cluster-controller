@@ -41,11 +41,11 @@ spec:
     - mountPath: /etc/kubernetes/pki/ca
       name: ca
     {{- end }}
-  {{- end }}
   hostNetwork: {{ .hostNetwork }}
   priorityClassName: {{ .priorityClassName }}
   securityContext:
     {{- toYaml .resources | nindent 6 }}
+  {{- end }}
   volumes:
   - hostPath:
       path: /etc/kubernetes/pki/certs/etcd
