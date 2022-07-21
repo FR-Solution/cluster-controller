@@ -1,18 +1,22 @@
 package kubernetes
 
 import (
+	v1 "k8s.io/api/apps/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type StaticpodResource struct {
+	v1.Deployment
+}
+
 var (
-	minimum      = 1.0
 	staticpodCRD = &apiextensionsv1.CustomResourceDefinition{
-		TypeMeta: v1.TypeMeta{
+		TypeMeta: meta_v1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1",
 			Kind:       "CustomResourceDefinition",
 		},
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: meta_v1.ObjectMeta{
 			Name: "staticpods.fraima.io",
 		},
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
@@ -33,10 +37,10 @@ var (
 							Required: []string{"metadata", "spec"},
 							Properties: map[string]apiextensionsv1.JSONSchemaProps{
 								"metadata": {
-									Type:    "object",
+									Type: "object",
 								},
 								"spec": {
-									Type:    "object",
+									Type: "object",
 								},
 							},
 						},
@@ -47,6 +51,14 @@ var (
 						Status: &apiextensionsv1.CustomResourceSubresourceStatus{},
 					},
 				},
+			},
+		},
+	}
+	staticpodTemplate = &StaticpodResource{
+		Deployment: v1.Deployment{
+			TypeMeta: meta_v1.TypeMeta{
+				APIVersion: "fraima.io/v1beta1",
+				Kind:       "staticpod",
 			},
 		},
 	}

@@ -9,12 +9,14 @@ import (
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+	k8sYaml "sigs.k8s.io/yaml"
 
 	"github.com/fraima/cluster-controller/internal/utils"
 )
 
 type K8sClient interface {
 	CreateCRD() error
+	CreateStaticPod(data []byte) error
 }
 
 type controller struct {
@@ -43,11 +45,10 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 	manifest := make(map[string][]byte, 0)
 
 	for _, m := range cfg.Manifests {
-		if s.manifestIsNotExist(m.Name) {
-			if manifest[m.Name], err = s.createManifest(m); err != nil {
-				return nil, fmt.Errorf("create manifest %s : %w", m.Name, err)
-			}
+		if manifest[m.Name], err = s.createManifest(m); err != nil {
+			return nil, fmt.Errorf("create manifest %s : %w", m.Name, err)
 		}
+		zap.L().Debug("manifest created", zap.String("name", m.Name))
 	}
 
 	for {
@@ -57,6 +58,14 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 			continue
 		}
 		break
+	}
+
+	for manifestName, manifestYAMLData := range manifest {
+		manifestJSONData, _ := k8sYaml.YAMLToJSON(manifestYAMLData)
+		if err := s.cli.CreateStaticPod(manifestJSONData); err != nil {
+			return nil, fmt.Errorf("create saticpod %s : %w", manifestName, err)
+		}
+		zap.L().Debug("staticpod creatd", zap.String("name", manifestName))
 	}
 
 	return s, nil
@@ -82,9 +91,11 @@ func (s *controller) createManifest(m Manifest) ([]byte, error) {
 		return nil, fmt.Errorf("fill in template %s with data %+v : %w", m.TemplatePath, m, err)
 	}
 
-	if err = s.saveManifest(m.Name, manifestBuffer.Bytes()); err != nil {
-		return nil, fmt.Errorf("save manifest %s: %w", m.Name, err)
+	if s.manifestIsNotExist(m.Name) {
+		if err = s.saveManifest(m.Name, manifestBuffer.Bytes()); err != nil {
+			return nil, fmt.Errorf("save manifest %s: %w", m.Name, err)
+		}
+		zap.L().Debug("manifest local save", zap.String("name", m.Name))
 	}
-	zap.L().Debug("manifest create", zap.String("name", m.Name))
 	return manifestBuffer.Bytes(), nil
 }

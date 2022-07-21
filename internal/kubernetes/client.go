@@ -2,14 +2,15 @@ package kubernetes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -39,12 +40,34 @@ func (c *Client) CreateCRD() error {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	_, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), staticpodCRD, v1.CreateOptions{})
+	_, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), staticpodCRD, meta_v1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("create cdr in kubernetes: %w", err)
 	}
 
 	return nil
+}
+
+func (c *Client) CreateStaticPod(data []byte) error {
+	podManifest := new(v1.Pod)
+	if err := json.Unmarshal(data, podManifest); err != nil {
+		return fmt.Errorf("unmarchal pod manifest: %w", err)
+	}
+
+	staticpod := staticpodTemplate
+	staticpod.Name = podManifest.GetName()
+	staticpod.Spec.Template = v1.PodTemplateSpec{
+		ObjectMeta: podManifest.ObjectMeta,
+		Spec:       podManifest.Spec,
+	}
+
+	resourceClient, err := newResourceClient(c.restConfig)
+	if err != nil {
+		return fmt.Errorf("create new clientset: %w", err)
+	}
+
+	_, err = resourceClient.Create(staticpod)
+	return err
 }
 
 func (c *Client) CreateInformer(crd *v1beta1.CustomResourceDefinition) error {
