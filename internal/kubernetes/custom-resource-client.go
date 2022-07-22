@@ -51,7 +51,7 @@ func newResourceClient(cfg *rest.Config) (*resourceClient, error) {
 func (c *resourceClient) Create(obj *StaticpodResource) (*StaticpodResource, error) {
 	result := &StaticpodResource{}
 	err := c.cli.Post().
-		Namespace(namespace).
+		Namespace(namespace).Resource(Plural).
 		Body(obj).
 		Do(context.Background()).
 		Into(result)
@@ -61,7 +61,7 @@ func (c *resourceClient) Create(obj *StaticpodResource) (*StaticpodResource, err
 func (c *resourceClient) Update(obj *StaticpodResource) (*StaticpodResource, error) {
 	result := &StaticpodResource{}
 	err := c.cli.Put().
-		Namespace(namespace).
+		Namespace(namespace).Resource(Plural).
 		Body(obj).
 		Do(context.Background()).
 		Into(result)
@@ -70,7 +70,7 @@ func (c *resourceClient) Update(obj *StaticpodResource) (*StaticpodResource, err
 
 func (c *resourceClient) Delete(name string, options *meta_v1.DeleteOptions) error {
 	return c.cli.Delete().
-		Namespace(namespace).
+		Namespace(namespace).Resource(Plural).
 		Name(name).
 		Body(options).
 		Do(context.Background()).
@@ -80,7 +80,7 @@ func (c *resourceClient) Delete(name string, options *meta_v1.DeleteOptions) err
 func (c *resourceClient) Get(name string) (*StaticpodResource, error) {
 	result := &StaticpodResource{}
 	err := c.cli.Get().
-		Namespace(namespace).
+		Namespace(namespace).Resource(Plural).
 		Name(name).
 		Do(context.Background()).
 		Into(result)
