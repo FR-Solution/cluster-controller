@@ -5,41 +5,42 @@ import (
 
 	v1 "k8s.io/api/apps/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type StaticpodResource struct {
-	v1.Deployment
+type staticpod struct {
+	v1.Deployment `json:",inline" yaml:",inline"`
 }
 
 var (
-	Group       = "fraima.io"
-	Kind        = "staticpod"
-	ListKind    = "StaticPodList"
-	Plural      = "staticpod"
-	Singular    = "staticpod"
-	VersionName = "v1beta1"
+	group       = "fraima.io"
+	kind        = "staticpod"
+	listKind    = "StaticPodList"
+	plural      = "staticpod"
+	singular    = "staticpod"
+	versionName = "v1beta1"
+	namespace   = "kube-system"
 
 	staticpodCRD = &apiextensionsv1.CustomResourceDefinition{
-		TypeMeta: meta_v1.TypeMeta{
+		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apiextensions.k8s.io/v1",
 			Kind:       "CustomResourceDefinition",
 		},
-		ObjectMeta: meta_v1.ObjectMeta{
-			Name: fmt.Sprintf("%s.%s", Plural, Group),
+		ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("%s.%s", plural, group),
 		},
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
-			Group: Group,
+			Group: group,
 			Names: apiextensionsv1.CustomResourceDefinitionNames{
-				Kind:     Kind,
-				ListKind: ListKind,
-				Plural:   Plural,
-				Singular: Singular,
+				Kind:     kind,
+				ListKind: listKind,
+				Plural:   plural,
+				Singular: singular,
 			},
 			Scope: apiextensionsv1.NamespaceScoped,
 			Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
 				{
-					Name: VersionName,
+					Name: versionName,
 					Schema: &apiextensionsv1.CustomResourceValidation{
 						OpenAPIV3Schema: &apiextensionsv1.JSONSchemaProps{
 							Type:     "object",
@@ -63,11 +64,14 @@ var (
 			},
 		},
 	}
-	staticpodTemplate = &StaticpodResource{
+	staticpodTemplate = &staticpod{
 		Deployment: v1.Deployment{
-			TypeMeta: meta_v1.TypeMeta{
-				APIVersion: fmt.Sprintf("%s/%s", Group, VersionName),
-				Kind:       Kind,
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: fmt.Sprintf("%s/%s", group, versionName),
+				Kind:       kind,
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: namespace,
 			},
 		},
 	}

@@ -49,6 +49,7 @@ func main() {
 	for err != nil {
 		zap.L().Fatal("init kubernetes", zap.Error(err))
 	}
+	defer kubeClient.Close()
 
 	cntrl, err := controller.New(
 		kubeClient,

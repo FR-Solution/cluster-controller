@@ -1,11 +1,8 @@
 package controller
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"text/template"
 
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -45,7 +42,7 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 	manifest := make(map[string][]byte, 0)
 
 	for _, m := range cfg.Manifests {
-		if manifest[m.Name], err = s.createManifest(m); err != nil {
+		if manifest[m.Name], err = s.prepareManifest(m); err != nil {
 			return nil, fmt.Errorf("create manifest %s : %w", m.Name, err)
 		}
 		zap.L().Debug("manifest created", zap.String("name", m.Name))
@@ -75,27 +72,4 @@ func (s *controller) MergeValues(extraValues map[string]interface{}) {
 	utils.MergeValues(s.Values, extraValues)
 }
 
-func (s *controller) createManifest(m Manifest) ([]byte, error) {
-	templateData, err := os.ReadFile(m.TemplatePath)
-	if err != nil {
-		return nil, fmt.Errorf("open template file %s : %w", m.TemplatePath, err)
-	}
 
-	manifestTemplate, err := template.New(m.Name).Funcs(funcMap()).Parse(string(templateData))
-	if err != nil {
-		return nil, fmt.Errorf("parse template %s : %w", m.TemplatePath, err)
-	}
-
-	var manifestBuffer bytes.Buffer
-	if err = manifestTemplate.Execute(&manifestBuffer, s); err != nil {
-		return nil, fmt.Errorf("fill in template %s with data %+v : %w", m.TemplatePath, m, err)
-	}
-
-	if s.manifestIsNotExist(m.Name) {
-		if err = s.saveManifest(m.Name, manifestBuffer.Bytes()); err != nil {
-			return nil, fmt.Errorf("save manifest %s: %w", m.Name, err)
-		}
-		zap.L().Debug("manifest local save", zap.String("name", m.Name))
-	}
-	return manifestBuffer.Bytes(), nil
-}

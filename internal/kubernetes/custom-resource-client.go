@@ -10,17 +10,15 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-var namespace = "kube-system"
-
 var SchemeGroupVersion = schema.GroupVersion{
-	Group:   "fraima.io",
-	Version: "v1beta1",
+	Group:   group,
+	Version: versionName,
 }
 
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
-		&StaticpodResource{},
+		&staticpod{},
 	)
 	meta_v1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
@@ -48,20 +46,20 @@ func newResourceClient(cfg *rest.Config) (*resourceClient, error) {
 	return &resourceClient{cli: client}, nil
 }
 
-func (c *resourceClient) Create(obj *StaticpodResource) (*StaticpodResource, error) {
-	result := &StaticpodResource{}
+func (c *resourceClient) Create(obj *staticpod) (*staticpod, error) {
+	result := &staticpod{}
 	err := c.cli.Post().
-		Namespace(namespace).Resource(Plural).
+		Namespace(namespace).Resource(plural).
 		Body(obj).
 		Do(context.Background()).
 		Into(result)
 	return result, err
 }
 
-func (c *resourceClient) Update(obj *StaticpodResource) (*StaticpodResource, error) {
-	result := &StaticpodResource{}
+func (c *resourceClient) Update(obj *staticpod) (*staticpod, error) {
+	result := &staticpod{}
 	err := c.cli.Put().
-		Namespace(namespace).Resource(Plural).
+		Namespace(namespace).Resource(plural).
 		Body(obj).
 		Do(context.Background()).
 		Into(result)
@@ -70,17 +68,17 @@ func (c *resourceClient) Update(obj *StaticpodResource) (*StaticpodResource, err
 
 func (c *resourceClient) Delete(name string, options *meta_v1.DeleteOptions) error {
 	return c.cli.Delete().
-		Namespace(namespace).Resource(Plural).
+		Namespace(namespace).Resource(plural).
 		Name(name).
 		Body(options).
 		Do(context.Background()).
 		Error()
 }
 
-func (c *resourceClient) Get(name string) (*StaticpodResource, error) {
-	result := &StaticpodResource{}
+func (c *resourceClient) Get(name string) (*staticpod, error) {
+	result := &staticpod{}
 	err := c.cli.Get().
-		Namespace(namespace).Resource(Plural).
+		Namespace(namespace).Resource(plural).
 		Name(name).
 		Do(context.Background()).
 		Into(result)
