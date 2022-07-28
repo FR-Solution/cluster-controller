@@ -14,6 +14,7 @@ import (
 type K8sClient interface {
 	CreateCRD() error
 	CreateStaticPod(data []byte) error
+	CreateInformer() error
 }
 
 type controller struct {
@@ -56,14 +57,20 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 		}
 		break
 	}
+	zap.L().Debug("cdr created")
 
 	for manifestName, manifestYAMLData := range manifest {
 		manifestJSONData, _ := k8sYaml.YAMLToJSON(manifestYAMLData)
 		if err := s.cli.CreateStaticPod(manifestJSONData); err != nil {
 			return nil, fmt.Errorf("create saticpod %s : %w", manifestName, err)
 		}
-		zap.L().Debug("staticpod creatd", zap.String("name", manifestName))
+		zap.L().Debug("staticpod created", zap.String("name", manifestName))
 	}
+
+	if err := s.cli.CreateInformer(); err != nil {
+		return nil, fmt.Errorf("create informer : %w", err)
+	}
+	zap.L().Debug("informer created")
 
 	return s, nil
 }
@@ -71,5 +78,3 @@ func New(cli K8sClient, cfg Config) (*controller, error) {
 func (s *controller) MergeValues(extraValues map[string]interface{}) {
 	utils.MergeValues(s.Values, extraValues)
 }
-
-

@@ -5,17 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"time"
 
-	"gopkg.in/yaml.v3"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/client-go/dynamic"
-	"k8s.io/client-go/dynamic/dynamicinformer"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -24,6 +21,8 @@ import (
 type client struct {
 	restConfig   *rest.Config
 	shutdownChan chan struct{}
+
+	staticpod map[string]*staticpod
 }
 
 func NewClient(kubeconfigPath string) (*client, error) {
@@ -34,6 +33,7 @@ func NewClient(kubeconfigPath string) (*client, error) {
 
 	cli := &client{
 		shutdownChan: make(chan struct{}),
+		staticpod:    make(map[string]*staticpod),
 	}
 
 	cli.restConfig, err = clientcmd.RESTConfigFromKubeConfig(configBytes)
@@ -53,9 +53,6 @@ func (s *client) CreateCRD() error {
 	if err != nil {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
-
-	data, _ := yaml.Marshal(staticpodCRD)
-	fmt.Println(string(data))
 
 	_, err = kubeClient.ApiextensionsV1().CustomResourceDefinitions().Create(context.Background(), staticpodCRD, meta_v1.CreateOptions{})
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -78,45 +75,42 @@ func (s *client) CreateStaticPod(data []byte) error {
 		Spec:       podManifest.Spec,
 	}
 
-	data, _ = yaml.Marshal(staticpod)
-	fmt.Println(string(data))
-
 	resourceClient, err := newResourceClient(s.restConfig)
 	if err != nil {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	if _, err = resourceClient.Create(staticpod); err != nil {
+	if _, err = resourceClient.Create(staticpod); err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("create staticpod %s : %w", podManifest.GetName(), err)
 	}
+
+	s.staticpod[staticpod.Name] = staticpod
 	return nil
 }
 
 func (s *client) CreateInformer() error {
-	clusterClient, err := dynamic.NewForConfig(s.restConfig)
+	clientset, err := kubernetes.NewForConfig(s.restConfig)
 	if err != nil {
-		return fmt.Errorf("create new dinamic client: %w", err)
+		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	resource := schema.GroupVersionResource{
-		Group:    group,
-		Version:  versionName,
-		Resource: plural,
-	}
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(clusterClient, time.Minute, namespace, nil)
-	go factory.Start(s.shutdownChan)
-
-	informer := factory.ForResource(resource).Informer()
-	if !cache.WaitForCacheSync(s.shutdownChan, informer.HasSynced) {
-		err = fmt.Errorf("Timed out waiting for caches to sync")
-		runtime.HandleError(err)
-		return err
-	}
-
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    func(obj interface{}) { fmt.Println("add") },
-		UpdateFunc: func(interface{}, interface{}) { fmt.Println("update") },
-		DeleteFunc: func(interface{}) { fmt.Println("delete") },
-	})
+	watchlist := cache.NewListWatchFromClient(clientset.RESTClient(), plural, namespace, fields.Everything())
+	_, controller := cache.NewInformer(
+		watchlist,
+		&staticpod{},
+		0,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				fmt.Printf("service added: %s \n", obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				fmt.Printf("service deleted: %s \n", obj)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				fmt.Printf("service changed \n")
+			},
+		},
+	)
+	go controller.Run(s.shutdownChan)
 	return nil
 }
