@@ -94,7 +94,7 @@ func (s *client) CreateInformer() error {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	watchlist := cache.NewListWatchFromClient(clientset.RESTClient(), plural, namespace, fields.Everything())
+	watchlist := cache.NewListWatchFromClient(clientset.AppsV1().RESTClient(), "v1beta1.io.fraima.staticpod", v1.NamespaceAll, fields.Everything())
 	_, controller := cache.NewInformer(
 		watchlist,
 		&staticpod{},
