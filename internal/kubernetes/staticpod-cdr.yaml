@@ -1,0 +1,161 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: staticpod.fraima.io
+spec:
+  conversion:
+    strategy: None
+  group: fraima.io
+  names:
+    kind: staticpod
+    listKind: StaticPodList
+    plural: staticpod
+    singular: staticpod
+  scope: Namespaced
+  versions:
+    - name: v1beta1
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            apiVersion:
+              type: string
+            kind:
+              type: string
+            metadata:
+              type: object
+            spec:
+              type: object
+              properties:
+                selector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                template:
+                  type: object
+                  properties:
+                    metadata:
+                      type: object
+                      properties:
+                        labels:
+                          type: object
+                          additionalProperties:
+                            type: string
+                        annotations:
+                          type: object
+                          additionalProperties:
+                            type: string
+                    spec:
+                      type: object
+                      properties:
+                        hostNetwork:
+                          type: boolean
+                        priorityClassName:
+                          type: string
+                        volumes:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              hostPath:
+                                type: object
+                                additionalProperties:
+                                  type: string
+                            type: object
+                          type: array
+
+                        containers:
+                          items:
+                            properties:
+                              name:
+                                type: string
+                              image:
+                                type: string
+                              command:
+                                type: array
+                                items:
+                                  type: string
+                              args:
+                                type: array
+                                items:
+                                  type: string
+                              resources:
+                                type: object
+                                properties:
+                                  requests:
+                                    type: object
+                                    additionalProperties:
+                                      type: string
+                                  limits:
+                                    type: object
+                                    additionalProperties:
+                                      type: string
+                              volumeMounts:
+                                items:
+                                  properties:
+                                    name:
+                                      type: string
+                                    mountPath:
+                                      type: string
+                                  type: object
+                                type: array
+                              livenessProbe:
+                                type: object
+                                properties:
+                                  httpGet:
+                                    type: object
+                                    properties:
+                                      path:
+                                        type: string
+                                      port:
+                                        type: integer
+                                      host:
+                                        type: string
+                                      scheme:
+                                        type: string
+                                  initialDelaySeconds:
+                                    type: integer
+                                  timeoutSeconds:
+                                    type: integer
+                                  periodSeconds:
+                                    type: integer
+                                  failureThreshold:
+                                    type: integer
+                              startupProbe:
+                                type: object
+                                properties:
+                                  httpGet:
+                                    type: object
+                                    properties:
+                                      path:
+                                        type: string
+                                      port:
+                                        type: integer
+                                      host:
+                                        type: string
+                                      scheme:
+                                        type: string
+                                  initialDelaySeconds:
+                                    type: integer
+                                  timeoutSeconds:
+                                    type: integer
+                                  periodSeconds:
+                                    type: integer
+                                  failureThreshold:
+                                    type: integer
+
+                              imagePullPolicy:
+                                type: string
+                            type: object
+                          type: array
+
+            status:
+              type: object
+
+      served: true
+      storage: true
+      subresources:
+        status: {}
