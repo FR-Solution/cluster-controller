@@ -121,38 +121,40 @@ func (s *client) CreateInformer() error {
 	).Informer()
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			typedObj, ok := newObj.(*unstructured.Unstructured)
-			if !ok {
-				zap.L().Error("convert object to unstructured.Unstructured")
-				return
-			}
-
-			oldPod, isExist := s.staticpod.Load(typedObj.GetName())
-			if !isExist {
-				zap.L().Warn("not found staticpod", zap.String("name", typedObj.GetName()))
-				return
-			}
-
-			specData, err := json.Marshal(typedObj.Object["spec"])
-			if err != nil {
-				zap.L().Error("marshal spec to json")
-				return
-			}
-
-			var newSpec apps_v1.DeploymentSpec
-			if err = json.Unmarshal(specData, &newSpec); err != nil {
-				zap.L().Error("marshal json to spec")
-				return
-			}
-
-			spod := oldPod.(*staticpod)
-			spod.Spec = newSpec
-
-			s.staticpod.Store(typedObj.GetName(), spod)
-		},
+		UpdateFunc: s.iformerUpdateFunc,
 	})
 	go informer.Run(s.shutdownChan)
 
 	return nil
+}
+
+func (s *client) iformerUpdateFunc(oldObj, newObj interface{}) {
+	typedObj, ok := newObj.(*unstructured.Unstructured)
+	if !ok {
+		zap.L().Error("convert object to unstructured.Unstructured")
+		return
+	}
+
+	oldPod, isExist := s.staticpod.Load(typedObj.GetName())
+	if !isExist {
+		zap.L().Warn("not found staticpod", zap.String("name", typedObj.GetName()))
+		return
+	}
+
+	specData, err := json.Marshal(typedObj.Object["spec"])
+	if err != nil {
+		zap.L().Error("marshal spec to json")
+		return
+	}
+
+	var newSpec apps_v1.DeploymentSpec
+	if err = json.Unmarshal(specData, &newSpec); err != nil {
+		zap.L().Error("marshal json to spec")
+		return
+	}
+
+	spod := oldPod.(*staticpod)
+	spod.Spec = newSpec
+
+	s.staticpod.Store(typedObj.GetName(), spod)
 }
