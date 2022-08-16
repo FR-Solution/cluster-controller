@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"go.uber.org/zap"
+	apps_v1 "k8s.io/api/apps/v1"
+	core_v1 "k8s.io/api/core/v1"
+	apiextensions_v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +30,7 @@ type client struct {
 	restConfig   *rest.Config
 	shutdownChan chan struct{}
 
-	staticpod map[string]*staticpod
+	staticpod sync.Map
 }
 
 func NewClient(kubeconfigPath string) (*client, error) {
@@ -38,7 +41,6 @@ func NewClient(kubeconfigPath string) (*client, error) {
 
 	cli := &client{
 		shutdownChan: make(chan struct{}),
-		staticpod:    make(map[string]*staticpod),
 	}
 
 	cli.restConfig, err = clientcmd.RESTConfigFromKubeConfig(configBytes)
@@ -59,7 +61,7 @@ func (s *client) CreateCRD() error {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	crd := &apiextensionsv1.CustomResourceDefinition{}
+	crd := &apiextensions_v1.CustomResourceDefinition{}
 
 	crdJSONData, _ := yaml.YAMLToJSON(staticpodCDR)
 
@@ -76,14 +78,14 @@ func (s *client) CreateCRD() error {
 }
 
 func (s *client) CreateStaticPod(data []byte) error {
-	podManifest := new(v1.Pod)
+	podManifest := new(core_v1.Pod)
 	if err := json.Unmarshal(data, podManifest); err != nil {
 		return fmt.Errorf("unmarchal pod manifest: %w", err)
 	}
 
-	staticpod := staticpodTemplate
-	staticpod.Name = podManifest.GetName()
-	staticpod.Spec.Template = v1.PodTemplateSpec{
+	spod := staticpodTemplate
+	spod.Name = podManifest.GetName()
+	spod.Spec.Template = core_v1.PodTemplateSpec{
 		ObjectMeta: podManifest.ObjectMeta,
 		Spec:       podManifest.Spec,
 	}
@@ -93,11 +95,11 @@ func (s *client) CreateStaticPod(data []byte) error {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	if _, err = resourceClient.Create(staticpod); err != nil && !errors.IsAlreadyExists(err) {
+	if _, err = resourceClient.Create(spod); err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("create staticpod %s : %w", podManifest.GetName(), err)
 	}
 
-	s.staticpod[staticpod.Name] = staticpod
+	s.staticpod.Store(spod.Name, spod)
 	return nil
 }
 
@@ -107,7 +109,7 @@ func (s *client) CreateInformer() error {
 		return fmt.Errorf("create new clientset: %w", err)
 	}
 
-	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, time.Minute, v1.NamespaceAll, nil)
+	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, time.Minute, core_v1.NamespaceAll, nil)
 	go factory.Start(s.shutdownChan)
 
 	informer := factory.ForResource(
@@ -120,14 +122,34 @@ func (s *client) CreateInformer() error {
 
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		UpdateFunc: func(oldObj, newObj interface{}) {
-			typedObj := oldObj.(*unstructured.Unstructured)
-			bytes, _ := typedObj.MarshalJSON()
-			fmt.Println(string(bytes))
+			typedObj, ok := newObj.(*unstructured.Unstructured)
+			if !ok {
+				zap.L().Error("convert object to unstructured.Unstructured")
+				return
+			}
 
-			typedObj = newObj.(*unstructured.Unstructured)
-			typedObj.GetAnnotations()
-			bytes, _ = typedObj.MarshalJSON()
-			fmt.Println(string(bytes))
+			oldPod, isExist := s.staticpod.Load(typedObj.GetName())
+			if !isExist {
+				zap.L().Warn("not found staticpod", zap.String("name", typedObj.GetName()))
+				return
+			}
+
+			specData, err := json.Marshal(typedObj.Object["spec"])
+			if err != nil {
+				zap.L().Error("marshal spec to json")
+				return
+			}
+
+			var newSpec apps_v1.DeploymentSpec
+			if err = json.Unmarshal(specData, &newSpec); err != nil {
+				zap.L().Error("marshal json to spec")
+				return
+			}
+
+			spod := oldPod.(*staticpod)
+			spod.Spec = newSpec
+
+			s.staticpod.Store(typedObj.GetName(), spod)
 		},
 	})
 	go informer.Run(s.shutdownChan)

@@ -4,13 +4,12 @@ import (
 	_ "embed"
 	"fmt"
 
-	v1 "k8s.io/api/apps/v1"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apps_v1 "k8s.io/api/apps/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type staticpod struct {
-	v1.Deployment `json:",inline" yaml:",inline"`
+	apps_v1.Deployment `json:",inline" yaml:",inline"`
 }
 
 var (
@@ -69,12 +68,12 @@ var (
 	// 	},
 	// }
 	staticpodTemplate = &staticpod{
-		Deployment: v1.Deployment{
-			TypeMeta: metav1.TypeMeta{
+		Deployment: apps_v1.Deployment{
+			TypeMeta: meta_v1.TypeMeta{
 				APIVersion: fmt.Sprintf("%s/%s", group, versionName),
 				Kind:       kind,
 			},
-			ObjectMeta: metav1.ObjectMeta{
+			ObjectMeta: meta_v1.ObjectMeta{
 				Namespace: namespace,
 			},
 		},
